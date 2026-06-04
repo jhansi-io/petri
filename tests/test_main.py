@@ -1,12 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
 
+import petri.config as config
 from petri.main import app, get_registry
 from petri.registry import Registry
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client(tmp_path) -> TestClient:
+    config.WORKSPACE_ROOT = tmp_path
     registry = Registry()
     app.dependency_overrides[get_registry] = lambda: registry
     yield TestClient(app)
