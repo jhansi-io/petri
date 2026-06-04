@@ -1,8 +1,10 @@
 from petri.sandbox import Sandbox
 
+
 class SandboxNotFound(Exception):
     pass
-    
+
+
 class Registry:
     def __init__(self) -> None:
         self._sandboxes: dict[str, Sandbox] = {}

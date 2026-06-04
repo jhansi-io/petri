@@ -22,6 +22,7 @@ EXTENSIONS: dict[str, str] = {
     "go": ".go",
 }
 
+
 def run(sandbox: Sandbox, code: str) -> str:
     image = IMAGES[sandbox.language]
     runner = RUNNERS[sandbox.language]
@@ -31,11 +32,17 @@ def run(sandbox: Sandbox, code: str) -> str:
         f.write(code.encode())
         tmp_path = Path(f.name)
 
-    result = subprocess.run([
-        "docker", "run", "--rm",
-        "-v", f"{tmp_path}:/code{ext}",
-        image,
-        "sh", "-c", f"{runner} /code{ext} 2>&1",
+    result = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{tmp_path}:/code{ext}",
+            image,
+            "sh",
+            "-c",
+            f"{runner} /code{ext} 2>&1",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
