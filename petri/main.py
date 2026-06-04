@@ -1,6 +1,7 @@
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
 
+from petri.config import WORKSPACE_ROOT
 from petri.executor import run
 from petri.registry import Registry, SandboxNotFound
 from petri.sandbox import Sandbox, SandboxStatus
@@ -43,6 +44,8 @@ def create_sandbox(
     registry: Registry = Depends(get_registry),
 ) -> SandboxResponse:
     sandbox = Sandbox(language=request.language)
+    sandbox.workspace_path = WORKSPACE_ROOT / sandbox.id
+    sandbox.workspace_path.mkdir(parents=True, exist_ok=True)
     registry.add(sandbox)
 
     return SandboxResponse(
