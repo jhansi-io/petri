@@ -87,4 +87,4 @@ def delete_sandbox(
     try:
         registry.remove(sandbox_id)
     except SandboxNotFound:
-        raise HTTPException(status_code=204, detail="Sandbox not found")
+        raise HTTPException(status_code=404, detail="Sandbox not found")
