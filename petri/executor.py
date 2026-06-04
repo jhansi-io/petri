@@ -1,5 +1,4 @@
 import subprocess
-import tempfile
 from pathlib import Path
 
 from petri.sandbox import Sandbox
@@ -23,14 +22,9 @@ EXTENSIONS: dict[str, str] = {
 }
 
 
-def run(sandbox: Sandbox, code: str) -> str:
+def run(sandbox: Sandbox, filename: str) -> str:
     image = IMAGES[sandbox.language]
     runner = RUNNERS[sandbox.language]
-    ext = EXTENSIONS[sandbox.language]
-
-    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
-        f.write(code.encode())
-        tmp_path = Path(f.name)
 
     result = subprocess.run(
         [
@@ -38,11 +32,11 @@ def run(sandbox: Sandbox, code: str) -> str:
             "run",
             "--rm",
             "-v",
-            f"{tmp_path}:/code{ext}",
+            f"{sandbox.workspace_path}:/sandbox",
             image,
             "sh",
             "-c",
-            f"{runner} /code{ext} 2>&1",
+            f"{runner} /sandbox/{filename} 2>&1",
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
@@ -50,5 +44,4 @@ def run(sandbox: Sandbox, code: str) -> str:
         timeout=30,
     )
 
-    tmp_path.unlink(missing_ok=True)
     return result.stdout
