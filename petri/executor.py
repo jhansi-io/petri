@@ -1,6 +1,4 @@
 import subprocess
-from pathlib import Path
-
 from petri.sandbox import Sandbox
 
 IMAGES: dict[str, str] = {
@@ -21,10 +19,23 @@ EXTENSIONS: dict[str, str] = {
     "go": ".go",
 }
 
+def build_install_command(language: str, filename: str) -> str:
+    runner = RUNNERS[language]
+    if language == "python":
+        return (
+            "if [ -f /sandbox/pyproject.toml ]; then "
+            "pip install --target /sandbox/deps -q /sandbox; "
+            "elif [ -f /sandbox/requirements.txt ]; then "
+            "pip install --target /sandbox/deps -q -r /sandbox/requirements.txt; "
+            "else "
+            "pip install pipreqs -q && pipreqs --print /sandbox | pip install --target /sandbox/deps -q -r /dev/stdin; "
+            "fi && "
+            f"PYTHONPATH=/sandbox/deps python /sandbox/{filename} 2>&1"
+        )
+    return f"{runner} /sandbox/{filename} 2>&1"
 
 def run(sandbox: Sandbox, filename: str) -> str:
     image = IMAGES[sandbox.language]
-    runner = RUNNERS[sandbox.language]
 
     result = subprocess.run(
         [
@@ -36,7 +47,7 @@ def run(sandbox: Sandbox, filename: str) -> str:
             image,
             "sh",
             "-c",
-            f"{runner} /sandbox/{filename} 2>&1",
+            build_install_command(sandbox.language, filename),
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
