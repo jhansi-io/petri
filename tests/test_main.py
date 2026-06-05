@@ -55,3 +55,20 @@ def test_upload_file(client: TestClient) -> None:
     )
     assert response.status_code == 201
     assert response.json() == {"filename": "main.py"}
+
+def test_exec_sandbox(client: TestClient) -> None:
+    created = client.post("/v1/sandboxes", json={"language": "python"})
+    sandbox_id = created.json()["id"]
+    response = client.post(
+        f"/v1/sandboxes/{sandbox_id}/files",
+        files={"file": ("main.py", b"print('hello')", "text/plain")},
+    )
+    assert response.status_code == 201
+
+    response = client.post(
+        f"/v1/sandboxes/{sandbox_id}/exec",
+        json={"filename": "main.py"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"output": "hello\n"}
