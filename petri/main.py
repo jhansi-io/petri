@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
 from pydantic import BaseModel
 
 from petri.config import WORKSPACE_ROOT
@@ -52,6 +52,21 @@ def create_sandbox(
         id=sandbox.id, language=sandbox.language, status=sandbox.status
     )
 
+@app.post("/v1/sandboxes/{sandbox_id}/files", status_code=201)
+async def upload_file(
+    sandbox_id: str,
+    file: UploadFile = File(...),
+    registry: Registry = Depends(get_registry),
+) -> dict[str, str]:
+    try:
+        sandbox = registry.get(sandbox_id)
+    except SandboxNotFound:
+        raise HTTPException(status_code=404, detail="Sandbox not found")
+
+    destination = sandbox.workspace_path / file.filename
+    destination.write_bytes(await file.read())
+
+    return {"filename": file.filename}
 
 @app.post("/v1/sandboxes/{sandbox_id}/exec")
 def exec_sandbox(
