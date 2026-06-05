@@ -1,6 +1,22 @@
 # Changelog
 
-## [0.1.0] — 2026-06
+## [v0.2.0] - 2026-06-05
+
+### Added
+- Persistent workspace per sandbox — dedicated folder on disk at creation time
+- `POST /v1/sandboxes/{id}/files` — file upload endpoint
+- `petri/config.py` — workspace root configuration via `PETRI_WORKSPACE_ROOT`
+- Defaults to `~/.petri/workspaces` if env var not set
+
+### Changed
+- `POST /v1/sandboxes/{id}/exec` — now accepts `filename` instead of `code`
+- Executor mounts workspace folder instead of temp file
+- `Sandbox` dataclass now includes `workspace_path`
+
+### Removed
+- Code as string in exec request body
+
+## [0.1.0] — 2026-06-04
 
 Initial release.
 
