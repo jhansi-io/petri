@@ -2,7 +2,7 @@
 
 Sandboxed execution engine for untrusted code.
 
-Petri is the execution layer behind [Jhansi.io](https://jhansi.io) — 
+Petri is the execution layer behind [jhansi.io](https://jhansi.io) — 
 it runs AI-generated code safely in isolated Docker containers, 
 streams output, and tears down cleanly. No eval(). No escape.
 
@@ -34,30 +34,48 @@ make run
 
 Petri is now running at `http://localhost:8000`.
 
+By default, workspaces are stored at `~/.petri/workspaces`.
+Override with:
+
+```bash
+export PETRI_WORKSPACE_ROOT=/your/path
+```
+
 ---
 
 ## API
 
 ### Create a sandbox
+
 ```bash
 curl -X POST http://localhost:8000/v1/sandboxes \
   -H "Content-Type: application/json" \
   -d '{"language": "python"}'
 ```
 
-### Run code
+### Upload a file
+
+```bash
+curl -X POST http://localhost:8000/v1/sandboxes/<id>/files \
+  -F "file=@main.py"
+```
+
+### Run a file
+
 ```bash
 curl -X POST http://localhost:8000/v1/sandboxes/<id>/exec \
   -H "Content-Type: application/json" \
-  -d '{"code": "print(\"hello from petri!\")"}'
+  -d '{"filename": "main.py"}'
 ```
 
 ### Get status
+
 ```bash
 curl http://localhost:8000/v1/sandboxes/<id>
 ```
 
 ### Delete sandbox
+
 ```bash
 curl -X DELETE http://localhost:8000/v1/sandboxes/<id>
 ```
@@ -66,11 +84,11 @@ curl -X DELETE http://localhost:8000/v1/sandboxes/<id>
 
 ## Multi-Language Support
 
-| Language | Parameter  |
-|----------|------------|
-| Python   | `python`   |
-| Node.js  | `node`     |
-| Go       | `go`       |
+| Language | Parameter |
+|----------|-----------|
+| Python   | `python`  |
+| Node.js  | `node`    |
+| Go       | `go`      |
 
 ---
 
@@ -97,6 +115,5 @@ All design decisions are documented in [`docs/adr/`](docs/adr/).
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
-
-Part of the [Jhansi.io](https://jhansi.io) platform.
+Apache 2.0 — see [LICENSE](LICENSE).  
+Part of the [jhansi.io](https://jhansi.io) platform.
