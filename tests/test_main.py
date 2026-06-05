@@ -45,3 +45,13 @@ def test_delete_sandbox(client: TestClient) -> None:
 def test_delete_unknown_sandbox(client: TestClient) -> None:
     response = client.delete("/v1/sandboxes/sb_unknown")
     assert response.status_code == 404
+
+def test_upload_file(client: TestClient) -> None:
+    created = client.post("/v1/sandboxes", json={"language": "python"})
+    sandbox_id = created.json()["id"]
+    response = client.post(
+        f"/v1/sandboxes/{sandbox_id}/files",
+        files={"file": ("main.py", b"print('hello')", "text/plain")},
+    )
+    assert response.status_code == 201
+    assert response.json() == {"filename": "main.py"}
