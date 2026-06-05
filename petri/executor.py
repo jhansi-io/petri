@@ -32,6 +32,15 @@ def build_install_command(language: str, filename: str) -> str:
             "fi && "
             f"PYTHONPATH=/sandbox/deps python /sandbox/{filename} 2>&1"
         )
+    if language == "go":
+        return (
+            "if [ -f /sandbox/go.mod ]; then "
+            "cd /sandbox && go mod download; "
+            "else "
+            "cd /sandbox && go mod init sandbox && go mod tidy; "
+            "fi && "
+            f"go run /sandbox/{filename} 2>&1"
+        )
     return f"{runner} /sandbox/{filename} 2>&1"
 
 def run(sandbox: Sandbox, filename: str) -> str:
