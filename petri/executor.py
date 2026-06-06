@@ -5,18 +5,21 @@ IMAGES: dict[str, str] = {
     "python": "python:3.12-slim",
     "node": "node:20-slim",
     "go": "golang:1.22",
+    "java": "amazoncorretto:21",
 }
 
 RUNNERS: dict[str, str] = {
     "python": "python",
     "node": "node",
     "go": "go run",
+    "java": "java",
 }
 
 EXTENSIONS: dict[str, str] = {
     "python": ".py",
     "node": ".js",
     "go": ".go",
+    "java": ".java",
 }
 
 def build_install_command(language: str, filename: str) -> str:
@@ -48,6 +51,20 @@ def build_install_command(language: str, filename: str) -> str:
             "cd /sandbox && npm install -q; "
             "fi && "
             f"cd /sandbox && node /sandbox/{filename} 2>&1"
+        )
+
+    if language == "java":
+        classname = filename.replace(".java", "")
+        return (
+            "if [ -f /sandbox/pom.xml ]; then "
+            "cd /sandbox && mvn dependency:resolve -q && mvn compile -q && "
+            f"java -cp /sandbox/target/classes {classname} 2>&1; "
+            "elif [ -f /sandbox/build.gradle ]; then "
+            "cd /sandbox && gradle dependencies -q && gradle compileJava -q && "
+            f"java -cp /sandbox/build/classes/java/main {classname} 2>&1; "
+            "else "
+            f"cd /sandbox && javac {filename} && java {classname} 2>&1; "
+            "fi"
         )
     return f"{runner} /sandbox/{filename} 2>&1"
 
