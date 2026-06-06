@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0] - 2026-06-06
+
+### Added
+- Auto dependency detection at exec time for Python, Node, Go, and Java
+- Python: supports pyproject.toml, requirements.txt, and pipreqs fallback
+- Node: supports package.json + npm install
+- Go: supports go.mod + go mod download, falls back to go mod init + tidy
+- Java: supports pom.xml (Maven), build.gradle (Gradle), falls back to javac
+- Dependencies installed into sandbox workspace — persists across runs
+- ADR-006: auto dependency detection and installation
+
 ## [v0.2.0] - 2026-06-05
 
 ### Added
