@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0] - 2026-06-07
+### Added
+- `POST /v1/sandboxes/{id}/upload` — project upload via zip, preserves folder structure
+- `POST /v1/sandboxes/{id}/exec` now accepts `command` and optional `test` flag
+- Test mode — starts the command, waits 2 seconds, runs language-appropriate test suite, returns results
+- Test runners: pytest (Python), jest (Node), go test (Go), mvn test (Java)
+- ADR-007: test mode
+- ADR-008: project upload via zip
+
+### Changed
+- `exec` request body: `filename` replaced by `command` — breaking change
+- Java image updated to `maven:3.9-amazoncorretto-21` to support `mvn test`
+- Dependency installation separated from execution for test mode
+
 ## [0.3.0] - 2026-06-06
 
 ### Added
