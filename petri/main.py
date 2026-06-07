@@ -26,8 +26,8 @@ class SandboxResponse(BaseModel):
 
 
 class ExecRequest(BaseModel):
-    filename: str
-
+    command: str
+    test: bool = False
 
 class ExecResponse(BaseModel):
     output: str
@@ -78,7 +78,7 @@ def exec_sandbox(
         sandbox = registry.get(sandbox_id)
     except SandboxNotFound:
         raise HTTPException(status_code=404, detail="Sandbox not found")
-    output = run(sandbox, request.filename)
+    output = run(sandbox, request.command, request.test)
     return ExecResponse(output=output)
 
 

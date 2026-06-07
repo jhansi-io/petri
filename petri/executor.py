@@ -1,4 +1,6 @@
 import subprocess
+import time
+
 from petri.sandbox import Sandbox
 
 IMAGES: dict[str, str] = {
@@ -8,22 +10,14 @@ IMAGES: dict[str, str] = {
     "java": "amazoncorretto:21",
 }
 
-RUNNERS: dict[str, str] = {
-    "python": "python",
-    "node": "node",
-    "go": "go run",
-    "java": "java",
+TEST_RUNNERS: dict[str, str] = {
+    "python": "pytest /sandbox/tests -v",
+    "node": "cd /sandbox && npx jest",
+    "go": "cd /sandbox && go test ./...",
+    "java": "cd /sandbox && mvn test",
 }
 
-EXTENSIONS: dict[str, str] = {
-    "python": ".py",
-    "node": ".js",
-    "go": ".go",
-    "java": ".java",
-}
-
-def build_install_command(language: str, filename: str) -> str:
-    runner = RUNNERS[language]
+def build_install_command(language: str, command: str) -> str:
     if language == "python":
         return (
             "if [ -f /sandbox/pyproject.toml ]; then "
@@ -33,7 +27,7 @@ def build_install_command(language: str, filename: str) -> str:
             "else "
             "pip install pipreqs -q && pipreqs --print /sandbox | pip install --target /sandbox/deps -q -r /dev/stdin; "
             "fi && "
-            f"PYTHONPATH=/sandbox/deps python /sandbox/{filename} 2>&1"
+            f"PYTHONPATH=/sandbox/deps {command} 2>&1"
         )
     if language == "go":
         return (
@@ -42,7 +36,7 @@ def build_install_command(language: str, filename: str) -> str:
             "else "
             "cd /sandbox && go mod init sandbox && go mod tidy; "
             "fi && "
-            f"go run /sandbox/{filename} 2>&1"
+            f"{command} 2>&1"
         )
 
     if language == "node":
@@ -50,43 +44,66 @@ def build_install_command(language: str, filename: str) -> str:
             "if [ -f /sandbox/package.json ]; then "
             "cd /sandbox && npm install -q; "
             "fi && "
-            f"cd /sandbox && node /sandbox/{filename} 2>&1"
+            f"cd /sandbox && {command} 2>&1"
         )
 
     if language == "java":
-        classname = filename.replace(".java", "")
         return (
             "if [ -f /sandbox/pom.xml ]; then "
             "cd /sandbox && mvn dependency:resolve -q && mvn compile -q && "
-            f"java -cp /sandbox/target/classes {classname} 2>&1; "
+            f"{command} 2>&1; "
             "elif [ -f /sandbox/build.gradle ]; then "
             "cd /sandbox && gradle dependencies -q && gradle compileJava -q && "
-            f"java -cp /sandbox/build/classes/java/main {classname} 2>&1; "
+            f"{command} 2>&1; "
             "else "
-            f"cd /sandbox && javac {filename} && java {classname} 2>&1; "
+            f"cd /sandbox && {command} 2>&1; "
             "fi"
         )
-    return f"{runner} /sandbox/{filename} 2>&1"
+    return f"{command} 2>&1"
 
-def run(sandbox: Sandbox, filename: str) -> str:
+def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
     image = IMAGES[sandbox.language]
+    install_cmd = build_install_command(sandbox.language, command)
 
-    result = subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{sandbox.workspace_path}:/sandbox",
-            image,
-            "sh",
-            "-c",
-            build_install_command(sandbox.language, filename),
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-        timeout=30,
+    if not test:
+        result = subprocess.run(
+            [
+                "docker", "run", "--rm", "-w", "/sandbox",
+                "-v", f"{sandbox.workspace_path}:/sandbox",
+                image,
+                "sh", "-c", install_cmd],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=30,
+        )
+    
+        return result.stdout
+
+    container = subprocess.run(
+        ["docker", "run", "-d", "-w", "/sandbox", "-v", f"{sandbox.workspace_path}:/sandbox",
+         image, "sh", "-c", install_cmd],
+         stdout=subprocess.PIPE,
+         stderr=subprocess.DEVNULL,
+         text=True,
+    )
+    sandbox.container_id = container.stdout.strip()
+
+    time.sleep(2)
+
+    test_result = subprocess.run(
+        ["docker", "exec", sandbox.container_id, "sh", "-c",
+         TEST_RUNNERS[sandbox.language]],
+         stdout=subprocess.PIPE,
+         stderr=subprocess.DEVNULL,
+         text=True,
+         timeout=30,
     )
 
-    return result.stdout
+    subprocess.run(
+        ["docker", "stop", sandbox.container_id],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    return test_result.stdout

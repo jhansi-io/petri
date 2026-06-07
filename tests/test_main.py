@@ -67,7 +67,7 @@ def test_exec_sandbox(client: TestClient) -> None:
 
     response = client.post(
         f"/v1/sandboxes/{sandbox_id}/exec",
-        json={"filename": "main.py"},
+        json={"command": "python main.py"},
     )
 
     assert response.status_code == 200
