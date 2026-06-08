@@ -1,7 +1,8 @@
-from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
-from pydantic import BaseModel
-import zipfile
 import io
+import zipfile
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from pydantic import BaseModel
 
 from petri.config import WORKSPACE_ROOT
 from petri.executor import run
@@ -31,6 +32,7 @@ class ExecRequest(BaseModel):
     command: str
     test: bool = False
 
+
 class ExecResponse(BaseModel):
     output: str
 
@@ -54,6 +56,7 @@ def create_sandbox(
         id=sandbox.id, language=sandbox.language, status=sandbox.status
     )
 
+
 @app.post("/v1/sandboxes/{sandbox_id}/files", status_code=201)
 async def upload_file(
     sandbox_id: str,
@@ -74,6 +77,7 @@ async def upload_file(
     destination.write_bytes(await file.read())
 
     return {"filename": file.filename}
+
 
 @app.post("/v1/sandboxes/{sandbox_id}/upload", status_code=201)
 async def upload_project(
@@ -99,7 +103,9 @@ async def upload_project(
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(zf.read(member))
-    return {"status":"uploaded"}
+    return {"status": "uploaded"}
+
+
 @app.post("/v1/sandboxes/{sandbox_id}/exec")
 def exec_sandbox(
     sandbox_id: str,
