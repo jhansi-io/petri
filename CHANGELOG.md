@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0] - 2026-06-08
+
+### Added
+- Dockerfile for containerised deployment
+- docker-compose.yml for self-hosting — mounts Docker socket and workspace volume
+- `PETRI_WORKSPACE_ROOT` set to `/tmp/petri-workspaces` in Docker Compose
+
 ## [0.4.0] - 2026-06-07
 ### Added
 - `POST /v1/sandboxes/{id}/upload` — project upload via zip, preserves folder structure
