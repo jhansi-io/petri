@@ -85,7 +85,7 @@ def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
                 install_cmd,
             ],
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT,
             text=True,
             timeout=30,
         )
