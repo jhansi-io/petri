@@ -22,12 +22,10 @@ def build_deps_command(language: str) -> str:
     if language == "python":
         return (
             "if [ -f /sandbox/pyproject.toml ]; then "
-            "pip install --target /sandbox/deps -q /sandbox; "
+            "pip install --target /sandbox/deps -q --root-user-action=ignore --disable-pip-version-check /sandbox; "
             "elif [ -f /sandbox/requirements.txt ]; then "
-            "pip install --target /sandbox/deps -q -r /sandbox/requirements.txt; "
-            "else "
-            "pip install pipreqs -q && pipreqs --print /sandbox | "
-            "pip install --target /sandbox/deps -q -r /dev/stdin; "
+            "pip install --target /sandbox/deps -q --root-user-action=ignore --disable-pip-version-check -r /sandbox/requirements.txt; "
+            "else echo 'no dependencies found'; "
             "fi"
         )
     if language == "node":
@@ -67,99 +65,83 @@ def build_install_command(language: str, command: str) -> str:
 
 def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
     image = IMAGES[sandbox.language]
-    install_cmd = build_install_command(sandbox.language, command)
 
     if not test:
-        result = subprocess.run(
-            [
-                "docker",
-                "run",
-                "--rm",
-                "-w",
-                "/sandbox",
-                "-v",
-                f"{sandbox.workspace_path}:/sandbox",
-                image,
-                "sh",
-                "-c",
-                install_cmd,
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            timeout=30,
-        )
-
-        return result.stdout
-
-    if test:
-        # Step 1 — install deps (blocking)
         deps_cmd = build_deps_command(sandbox.language)
         if deps_cmd:
             subprocess.run(
                 [
-                    "docker",
-                    "run",
-                    "--rm",
-                    "-w",
-                    "/sandbox",
-                    "-v",
-                    f"{sandbox.workspace_path}:/sandbox",
-                    image,
-                    "sh",
-                    "-c",
-                    deps_cmd,
+                    "docker", "run", "--rm",
+                    "-w", "/sandbox",
+                    "-v", f"{sandbox.workspace_path}:/sandbox",
+                    image, "sh", "-c", deps_cmd,
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=120,
             )
 
-        # Step 2 — start app (detached)
         run_cmd = build_run_command(sandbox.language, command)
-        container = subprocess.run(
+        result = subprocess.run(
             [
-                "docker",
-                "run",
-                "-d",
-                "-w",
-                "/sandbox",
-                "-v",
-                f"{sandbox.workspace_path}:/sandbox",
-                image,
-                "sh",
-                "-c",
-                run_cmd,
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-        )
-        sandbox.container_id = container.stdout.strip()
-
-        # Step 3 — wait for app to start
-        time.sleep(2)
-
-        # Step 4 — run tests
-        test_result = subprocess.run(
-            [
-                "docker",
-                "exec",
-                sandbox.container_id,
-                "sh",
-                "-c",
-                TEST_RUNNERS[sandbox.language],
+                "docker", "run", "--rm",
+                "-w", "/sandbox",
+                "-v", f"{sandbox.workspace_path}:/sandbox",
+                image, "sh", "-c", run_cmd,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            timeout=60,
+            timeout=30,
         )
+        return result.stdout
 
+    # test path
+    deps_cmd = build_deps_command(sandbox.language)
+    if deps_cmd:
         subprocess.run(
-            ["docker", "stop", sandbox.container_id],
+            [
+                "docker", "run", "--rm",
+                "-w", "/sandbox",
+                "-v", f"{sandbox.workspace_path}:/sandbox",
+                image, "sh", "-c", deps_cmd,
+            ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            timeout=120,
         )
 
-        return test_result.stdout
+    run_cmd = build_run_command(sandbox.language, command)
+    container = subprocess.run(
+        [
+            "docker", "run", "-d",
+            "-w", "/sandbox",
+            "-v", f"{sandbox.workspace_path}:/sandbox",
+            image, "sh", "-c", run_cmd,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    sandbox.container_id = container.stdout.strip()
+
+    time.sleep(2)
+
+    test_result = subprocess.run(
+        [
+            "docker", "exec", sandbox.container_id,
+            "sh", "-c", TEST_RUNNERS[sandbox.language],
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        timeout=60,
+    )
+
+    subprocess.run(
+        ["docker", "stop", sandbox.container_id],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    return test_result.stdout
