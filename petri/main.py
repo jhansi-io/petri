@@ -1,18 +1,20 @@
-import io
-import zipfile
-from datetime import datetime, timedelta, timezone
 import asyncio
+import io
 import subprocess
+import zipfile
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from collections.abc import AsyncGenerator
 
 from petri.config import TTL_SECONDS, WORKSPACE_ROOT
-from petri.executor import run
+from petri.executor import run_stream
 from petri.registry import Registry, SandboxNotFound
 from petri.sandbox import Sandbox, SandboxStatus
+
 
 async def cleanup_loop() -> None:
     while True:
@@ -32,7 +34,8 @@ async def cleanup_loop() -> None:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     asyncio.create_task(cleanup_loop())
     yield
-    
+
+
 app = FastAPI(title="Petri", version="0.1.0", lifespan=lifespan)
 
 _registry = Registry()
@@ -55,10 +58,6 @@ class SandboxResponse(BaseModel):
 class ExecRequest(BaseModel):
     command: str
     test: bool = False
-
-
-class ExecResponse(BaseModel):
-    output: str
 
 
 @app.get("/health")
@@ -135,15 +134,20 @@ def exec_sandbox(
     sandbox_id: str,
     request: ExecRequest,
     registry: Registry = Depends(get_registry),
-) -> ExecResponse:
+) -> StreamingResponse:
     try:
         sandbox = registry.get(sandbox_id)
     except SandboxNotFound:
         raise HTTPException(status_code=404, detail="Sandbox not found")
-    output = run(sandbox, request.command, request.test)
     new_expires = datetime.now(timezone.utc) + timedelta(seconds=TTL_SECONDS)
     registry.update_expires_at(sandbox_id, new_expires)
-    return ExecResponse(output=output)
+    return StreamingResponse(
+        (
+            f"data: {line}"
+            for line in run_stream(sandbox, request.command, request.test)
+        ),
+        media_type="text/event-stream",
+    )
 
 
 @app.get("/v1/sandboxes/{sandbox_id}")

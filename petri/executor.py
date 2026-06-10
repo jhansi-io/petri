@@ -1,5 +1,6 @@
 import subprocess
 import time
+from collections.abc import Generator
 
 from petri.sandbox import Sandbox
 
@@ -180,3 +181,97 @@ def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
     )
 
     return test_result.stdout
+
+
+def run_stream(
+    sandbox: Sandbox, command: str, test: bool = False
+) -> Generator[str, None, None]:
+    image = IMAGES[sandbox.language]
+    deps_cmd = build_deps_command(sandbox.language)
+    if deps_cmd:
+        subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-w",
+                "/sandbox",
+                "-v",
+                f"{sandbox.workspace_path}:/sandbox",
+                image,
+                "sh",
+                "-c",
+                deps_cmd,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=120,
+        )
+    if not test:
+        run_cmd = build_run_command(sandbox.language, command)
+        with subprocess.Popen(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-w",
+                "/sandbox",
+                "-v",
+                f"{sandbox.workspace_path}:/sandbox",
+                image,
+                "sh",
+                "-c",
+                run_cmd,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        ) as proc:
+            if proc.stdout:
+                for line in proc.stdout:
+                    yield line
+    else:
+        run_cmd = build_run_command(sandbox.language, command)
+        container = subprocess.run(
+            [
+                "docker",
+                "run",
+                "-d",
+                "-w",
+                "/sandbox",
+                "-v",
+                f"{sandbox.workspace_path}:/sandbox",
+                image,
+                "sh",
+                "-c",
+                run_cmd,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+        sandbox.container_id = container.stdout.strip()
+
+        time.sleep(2)
+
+        with subprocess.Popen(
+            [
+                "docker",
+                "exec",
+                sandbox.container_id,
+                "sh",
+                "-c",
+                TEST_RUNNERS[sandbox.language],
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        ) as proc:
+            if proc.stdout:
+                for line in proc.stdout:
+                    yield line
+        subprocess.run(
+            ["docker", "stop", sandbox.container_id],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )

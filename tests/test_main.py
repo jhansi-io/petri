@@ -73,4 +73,5 @@ def test_exec_sandbox(client: TestClient) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json() == {"output": "hello\n"}
+    assert response.headers["content-type"] == "text/event-stream; charset=utf-8"
+    assert "data: hello\n" in response.text
