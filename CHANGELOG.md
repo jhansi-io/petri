@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0] - 2026-06-10
+
+### Changed
+- `POST /v1/sandboxes/{id}/exec` now streams output via SSE — breaking change
+- Replaced `subprocess.run` with `subprocess.Popen` for exec — output streamed line by line
+- Dep install remains silent and blocking; only exec output is streamed
+- Test mode streams pytest output line by line
+
+### Added
+- `run_stream()` generator in `executor.py`
+- ADR-011: streaming execution via SSE
+
 ## [0.6.0] - 2026-06-10
 
 ### Added
