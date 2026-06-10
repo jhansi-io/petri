@@ -1,8 +1,10 @@
 import secrets
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
+
+from petri.config import TTL_SECONDS
 
 
 class SandboxStatus(Enum):
@@ -21,3 +23,8 @@ class Sandbox:
     workspace_path: Path | None = None
     status: SandboxStatus = SandboxStatus.CREATED
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: datetime = field(
+        default_factory=lambda: (
+            datetime.now(timezone.utc) + timedelta(seconds=TTL_SECONDS)
+        )
+    )

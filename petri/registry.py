@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS sandboxes (
     container_id TEXT,
     workspace_path TEXT,
     status TEXT NOT NULL,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
 )
 """
 
@@ -32,7 +33,7 @@ class Registry:
 
     def add(self, sandbox: Sandbox) -> None:
         self._conn.execute(
-            "INSERT INTO sandboxes VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO sandboxes VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 sandbox.id,
                 sandbox.language,
@@ -40,6 +41,7 @@ class Registry:
                 str(sandbox.workspace_path) if sandbox.workspace_path else None,
                 sandbox.status.value,
                 sandbox.created_at.isoformat(),
+                sandbox.expires_at.isoformat(),
             ),
         )
         self._conn.commit()
@@ -53,9 +55,12 @@ class Registry:
         return self._row_to_sandbox(row)
 
     def remove(self, sandbox_id: str) -> None:
-        if self._conn.execute(
-            "SELECT id FROM sandboxes WHERE id = ?", (sandbox_id,)
-        ).fetchone() is None:
+        if (
+            self._conn.execute(
+                "SELECT id FROM sandboxes WHERE id = ?", (sandbox_id,)
+            ).fetchone()
+            is None
+        ):
             raise SandboxNotFound(sandbox_id)
         self._conn.execute("DELETE FROM sandboxes WHERE id = ?", (sandbox_id,))
         self._conn.commit()
@@ -68,4 +73,19 @@ class Registry:
             workspace_path=Path(row[3]) if row[3] else None,
             status=SandboxStatus(row[4]),
             created_at=datetime.fromisoformat(row[5]),
+            expires_at=datetime.fromisoformat(row[6]),
         )
+
+    def update_expires_at(self, sandbox_id: str, expires_at: datetime) -> None:
+        self._conn.execute(
+            "UPDATE sandboxes SET expires_at = ? WHERE id = ?",
+            (expires_at.isoformat(), sandbox_id),
+        )
+        self._conn.commit()
+
+    def list_expired(self) -> list[Sandbox]:
+        now = datetime.now(timezone.utc).isoformat()
+        rows = self._conn.execute(
+            "SELECT * FROM sandboxes WHERE expires_at < ?", (now,)
+        ).fetchall()
+        return [self._row_to_sandbox(row) for row in rows]

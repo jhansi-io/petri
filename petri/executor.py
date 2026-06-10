@@ -22,9 +22,12 @@ def build_deps_command(language: str) -> str:
     if language == "python":
         return (
             "if [ -f /sandbox/pyproject.toml ]; then "
-            "pip install --target /sandbox/deps -q --root-user-action=ignore --disable-pip-version-check /sandbox; "
+            "pip install --target /sandbox/deps -q "
+            "--root-user-action=ignore --disable-pip-version-check /sandbox; "
             "elif [ -f /sandbox/requirements.txt ]; then "
-            "pip install --target /sandbox/deps -q --root-user-action=ignore --disable-pip-version-check -r /sandbox/requirements.txt; "
+            "pip install --target /sandbox/deps -q "
+            "--root-user-action=ignore --disable-pip-version-check "
+            "-r /sandbox/requirements.txt; "
             "else echo 'no dependencies found'; "
             "fi"
         )
@@ -71,10 +74,17 @@ def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
         if deps_cmd:
             subprocess.run(
                 [
-                    "docker", "run", "--rm",
-                    "-w", "/sandbox",
-                    "-v", f"{sandbox.workspace_path}:/sandbox",
-                    image, "sh", "-c", deps_cmd,
+                    "docker",
+                    "run",
+                    "--rm",
+                    "-w",
+                    "/sandbox",
+                    "-v",
+                    f"{sandbox.workspace_path}:/sandbox",
+                    image,
+                    "sh",
+                    "-c",
+                    deps_cmd,
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -84,10 +94,17 @@ def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
         run_cmd = build_run_command(sandbox.language, command)
         result = subprocess.run(
             [
-                "docker", "run", "--rm",
-                "-w", "/sandbox",
-                "-v", f"{sandbox.workspace_path}:/sandbox",
-                image, "sh", "-c", run_cmd,
+                "docker",
+                "run",
+                "--rm",
+                "-w",
+                "/sandbox",
+                "-v",
+                f"{sandbox.workspace_path}:/sandbox",
+                image,
+                "sh",
+                "-c",
+                run_cmd,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -101,10 +118,17 @@ def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
     if deps_cmd:
         subprocess.run(
             [
-                "docker", "run", "--rm",
-                "-w", "/sandbox",
-                "-v", f"{sandbox.workspace_path}:/sandbox",
-                image, "sh", "-c", deps_cmd,
+                "docker",
+                "run",
+                "--rm",
+                "-w",
+                "/sandbox",
+                "-v",
+                f"{sandbox.workspace_path}:/sandbox",
+                image,
+                "sh",
+                "-c",
+                deps_cmd,
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -114,10 +138,17 @@ def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
     run_cmd = build_run_command(sandbox.language, command)
     container = subprocess.run(
         [
-            "docker", "run", "-d",
-            "-w", "/sandbox",
-            "-v", f"{sandbox.workspace_path}:/sandbox",
-            image, "sh", "-c", run_cmd,
+            "docker",
+            "run",
+            "-d",
+            "-w",
+            "/sandbox",
+            "-v",
+            f"{sandbox.workspace_path}:/sandbox",
+            image,
+            "sh",
+            "-c",
+            run_cmd,
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
@@ -129,8 +160,12 @@ def run(sandbox: Sandbox, command: str, test: bool = False) -> str:
 
     test_result = subprocess.run(
         [
-            "docker", "exec", sandbox.container_id,
-            "sh", "-c", TEST_RUNNERS[sandbox.language],
+            "docker",
+            "exec",
+            sandbox.container_id,
+            "sh",
+            "-c",
+            TEST_RUNNERS[sandbox.language],
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

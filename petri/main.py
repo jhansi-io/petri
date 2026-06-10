@@ -1,15 +1,39 @@
 import io
 import zipfile
+from datetime import datetime, timedelta, timezone
+import asyncio
+import subprocess
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from pydantic import BaseModel
+from collections.abc import AsyncGenerator
 
-from petri.config import WORKSPACE_ROOT
+from petri.config import TTL_SECONDS, WORKSPACE_ROOT
 from petri.executor import run
 from petri.registry import Registry, SandboxNotFound
 from petri.sandbox import Sandbox, SandboxStatus
 
-app = FastAPI(title="Petri", version="0.1.0")
+async def cleanup_loop() -> None:
+    while True:
+        await asyncio.sleep(60)
+        expired = _registry.list_expired()
+        for sandbox in expired:
+            if sandbox.container_id:
+                subprocess.run(
+                    ["docker", "stop", sandbox.container_id],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            _registry.remove(sandbox.id)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    asyncio.create_task(cleanup_loop())
+    yield
+    
+app = FastAPI(title="Petri", version="0.1.0", lifespan=lifespan)
 
 _registry = Registry()
 
@@ -117,6 +141,8 @@ def exec_sandbox(
     except SandboxNotFound:
         raise HTTPException(status_code=404, detail="Sandbox not found")
     output = run(sandbox, request.command, request.test)
+    new_expires = datetime.now(timezone.utc) + timedelta(seconds=TTL_SECONDS)
+    registry.update_expires_at(sandbox_id, new_expires)
     return ExecResponse(output=output)
 
 
