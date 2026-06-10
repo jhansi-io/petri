@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0] - 2026-06-10
+
+### Added
+- SQLite-backed registry — sandbox state survives Petri restarts
+- `expires_at` field on `Sandbox` — default TTL of 1 hour
+- `PETRI_SANDBOX_TTL_SECONDS` env var to configure TTL
+- Background cleanup task — expired sandboxes removed every 60 seconds
+- `update_expires_at()` and `list_expired()` methods on `Registry`
+
+### Changed
+- Exec resets `expires_at` on every call — only idle sandboxes are cleaned up
+- Dep install and exec split into separate Docker runs — clean output separation
+- Removed `pipreqs` fallback — no more noise in exec output
+
 ## [0.5.0] - 2026-06-08
 
 ### Added
