@@ -12,6 +12,7 @@ class SandboxStatus(Enum):
     RUNNING = "running"
     STOPPED = "stopped"
     ERROR = "error"
+    DELETED = "deleted"
 
 
 @dataclass
@@ -28,3 +29,5 @@ class Sandbox:
             datetime.now(timezone.utc) + timedelta(seconds=TTL_SECONDS)
         )
     )
+    agent: str | None = None
+    created_by: str = "unknown"

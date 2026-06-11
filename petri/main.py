@@ -47,6 +47,8 @@ def get_registry() -> Registry:
 
 class CreateSandboxRequest(BaseModel):
     language: str = "python"
+    agent: str | None = None
+    created_by: str = "unknown"
 
 
 class SandboxResponse(BaseModel):
@@ -70,7 +72,11 @@ def create_sandbox(
     request: CreateSandboxRequest,
     registry: Registry = Depends(get_registry),
 ) -> SandboxResponse:
-    sandbox = Sandbox(language=request.language)
+    sandbox = Sandbox(
+        language=request.language,
+        agent=request.agent,
+        created_by=request.created_by,
+    )
     sandbox.workspace_path = WORKSPACE_ROOT / sandbox.id
     sandbox.workspace_path.mkdir(parents=True, exist_ok=True)
     registry.add(sandbox)
