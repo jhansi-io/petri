@@ -207,8 +207,11 @@ def run_stream(
             stderr=subprocess.DEVNULL,
             timeout=120,
         )
+
     if not test:
         run_cmd = build_run_command(sandbox.language, command)
+        started_at = time.time()
+        output_lines: list[str] = []
         with subprocess.Popen(
             [
                 "docker",
@@ -229,7 +232,28 @@ def run_stream(
         ) as proc:
             if proc.stdout:
                 for line in proc.stdout:
-                    yield line
+                    output_lines.append(line)
+                    yield f"event: output\ndata: {line}\n\n"
+            exit_code = proc.wait()
+
+        duration_ms = int((time.time() - started_at) * 1000)
+        output = "".join(output_lines)
+        error = None
+        if exit_code != 0:
+            non_empty = [line for line in output_lines if line.strip()]
+            error = non_empty[-1].strip() if non_empty else "unknown error"
+
+        import json
+
+        done_payload = json.dumps(
+            {
+                "exit_code": exit_code,
+                "duration_ms": duration_ms,
+                "output": output,
+                "error": error,
+            }
+        )
+        yield f"event: done\ndata: {done_payload}\n\n"
     else:
         run_cmd = build_run_command(sandbox.language, command)
         container = subprocess.run(

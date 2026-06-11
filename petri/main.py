@@ -148,10 +148,7 @@ def exec_sandbox(
     new_expires = datetime.now(timezone.utc) + timedelta(seconds=TTL_SECONDS)
     registry.update_expires_at(sandbox_id, new_expires)
     return StreamingResponse(
-        (
-            f"data: {line}"
-            for line in run_stream(sandbox, request.command, request.test)
-        ),
+        run_stream(sandbox, request.command, request.test),
         media_type="text/event-stream",
     )
 
