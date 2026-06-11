@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0] - 2026-06-11
+
+### Added
+- Typed SSE events — `event: output` for stream lines, `event: done` for structured result
+- `done` payload includes `exit_code`, `duration_ms`, `output`, and `error` (last error line on failure)
+- Run model — every execution stored in SQLite with metadata: `exit_code`, `duration_ms`, `error`, `started_at`, `completed_at`
+- Full execution output written to flat log file at `PETRI_WORKSPACE_ROOT/{sandbox_id}/runs/{run_id}.log`
+- Rolling log retention — `PETRI_LOG_MAX_MB` env var (default `500`) caps total log storage, oldest files evicted first
+- Soft delete — sandboxes marked `deleted` with `deleted_at` timestamp, rows retained in SQLite
+- `agent` and `created_by` optional fields on `POST /v1/sandboxes` — tracks calling agent and creator
+- `GET /v1/metrics` — live counts: active sandboxes, total sandboxes, total runs, failed runs, success rate, avg duration, breakdown by agent
+- ADR-014: observability and execution history
+
+### Changed
+- `DELETE /v1/sandboxes/{id}` — soft delete, row retained for history
+- `GET /v1/sandboxes/{id}` — returns 404 for deleted sandboxes
+
 ## [0.7.0] - 2026-06-10
 
 ### Changed
