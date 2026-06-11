@@ -1,10 +1,13 @@
 import asyncio
 import io
+import json
+import secrets
 import subprocess
 import zipfile
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -135,6 +138,34 @@ async def upload_project(
     return {"status": "uploaded"}
 
 
+def _stream_and_record(
+    sandbox_id: str,
+    registry: Registry,
+    generator: Generator[str, None, None],
+    log_path: Path,
+) -> Generator[str, None, None]:
+    for event in generator:
+        yield event
+        if event.startswith("event: done"):
+            data_line = event.split("data: ", 1)[1].strip()
+            payload = json.loads(data_line)
+            run_id = f"run_{secrets.token_hex(8)}"
+            now = datetime.now(timezone.utc)
+            started_at = now - timedelta(milliseconds=payload["duration_ms"])
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(payload["output"] or "")
+            registry.add_run(
+                run_id=run_id,
+                sandbox_id=sandbox_id,
+                started_at=started_at,
+                completed_at=now,
+                duration_ms=payload["duration_ms"],
+                exit_code=payload["exit_code"],
+                error=payload["error"],
+                output=None,
+            )
+
+
 @app.post("/v1/sandboxes/{sandbox_id}/exec")
 def exec_sandbox(
     sandbox_id: str,
@@ -147,8 +178,19 @@ def exec_sandbox(
         raise HTTPException(status_code=404, detail="Sandbox not found")
     new_expires = datetime.now(timezone.utc) + timedelta(seconds=TTL_SECONDS)
     registry.update_expires_at(sandbox_id, new_expires)
+    log_path = (
+        WORKSPACE_ROOT
+        / sandbox_id
+        / "runs"
+        / f"{sandbox_id}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}.log"
+    )
     return StreamingResponse(
-        run_stream(sandbox, request.command, request.test),
+        _stream_and_record(
+            sandbox_id=sandbox_id,
+            registry=registry,
+            generator=run_stream(sandbox, request.command, request.test),
+            log_path=log_path,
+        ),
         media_type="text/event-stream",
     )
 
