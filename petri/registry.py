@@ -133,7 +133,7 @@ class Registry:
         duration_ms: int,
         exit_code: int,
         error: str | None,
-        output: str,
+        output: str | None,
     ) -> None:
         self._conn.execute(
             "INSERT INTO runs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -149,3 +149,40 @@ class Registry:
             ),
         )
         self._conn.commit()
+
+    def get_metrics(self) -> dict:  # type: ignore[type-arg]
+        active = self._conn.execute(
+            "SELECT COUNT(*) FROM sandboxes WHERE deleted_at IS NULL"
+        ).fetchone()[0]
+        total = self._conn.execute("SELECT COUNT(*) FROM sandboxes").fetchone()[0]
+        runs_total = self._conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
+        runs_failed = self._conn.execute(
+            "SELECT COUNT(*) FROM runs WHERE exit_code != 0"
+        ).fetchone()[0]
+        avg_duration = self._conn.execute(
+            "SELECT AVG(duration_ms) FROM runs WHERE duration_ms IS NOT NULL"
+        ).fetchone()[0]
+        by_agent = {}
+        rows = self._conn.execute(
+            "SELECT agent, COUNT(*), SUM(CASE WHEN exit_code != 0 THEN 1 ELSE 0 END) "
+            "FROM runs JOIN sandboxes ON runs.sandbox_id = sandboxes.id "
+            "WHERE sandboxes.agent IS NOT NULL "
+            "GROUP BY sandboxes.agent"
+        ).fetchall()
+        for row in rows:
+            agent, count, failed = row
+            by_agent[agent] = {
+                "runs": count,
+                "success_rate": round(1 - (failed / count), 2) if count else 0,
+            }
+        return {
+            "sandboxes_active": active,
+            "sandboxes_total": total,
+            "runs_total": runs_total,
+            "runs_failed": runs_failed,
+            "success_rate": round(1 - (runs_failed / runs_total), 2)
+            if runs_total
+            else 1.0,
+            "avg_duration_ms": int(avg_duration) if avg_duration else 0,
+            "by_agent": by_agent,
+        }

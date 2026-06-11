@@ -70,6 +70,13 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/v1/metrics")
+def get_metrics(
+    registry: Registry = Depends(get_registry),
+) -> dict:  # type: ignore[type-arg]
+    return registry.get_metrics()
+
+
 @app.post("/v1/sandboxes", status_code=201)
 def create_sandbox(
     request: CreateSandboxRequest,
