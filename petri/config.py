@@ -6,3 +6,5 @@ WORKSPACE_ROOT: Path = Path(
 ).expanduser()
 
 TTL_SECONDS: int = int(os.environ.get("PETRI_SANDBOX_TTL_SECONDS", "3600"))
+
+LOG_MAX_MB: int = int(os.environ.get("PETRI_LOG_MAX_MB", "500"))

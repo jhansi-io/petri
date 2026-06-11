@@ -13,8 +13,9 @@ from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from petri.config import TTL_SECONDS, WORKSPACE_ROOT
+from petri.config import LOG_MAX_MB, TTL_SECONDS, WORKSPACE_ROOT
 from petri.executor import run_stream
+from petri.log_retention import evict_logs_if_needed
 from petri.registry import Registry, SandboxNotFound
 from petri.sandbox import Sandbox, SandboxStatus
 
@@ -161,6 +162,7 @@ def _stream_and_record(
             started_at = now - timedelta(milliseconds=payload["duration_ms"])
             log_path.parent.mkdir(parents=True, exist_ok=True)
             log_path.write_text(payload["output"] or "")
+            evict_logs_if_needed(WORKSPACE_ROOT, LOG_MAX_MB)
             registry.add_run(
                 run_id=run_id,
                 sandbox_id=sandbox_id,
