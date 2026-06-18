@@ -124,6 +124,23 @@ class Registry:
         ).fetchall()
         return [self._row_to_sandbox(row) for row in rows]
 
+    def list_active(self) -> list[Sandbox]:
+        now = datetime.now(timezone.utc).isoformat()
+        rows = self._conn.execute(
+            "SELECT * FROM sandboxes "
+            "WHERE deleted_at IS NULL AND expires_at > ? "
+            "ORDER BY created_at DESC",
+            (now,),
+        ).fetchall()
+        return [self._row_to_sandbox(row) for row in rows]
+
+    def list_all(self, limit: int = 50, offset: int = 0) -> list[Sandbox]:
+        rows = self._conn.execute(
+            "SELECT * FROM sandboxes ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        return [self._row_to_sandbox(row) for row in rows]
+
     def add_run(
         self,
         run_id: str,
@@ -149,6 +166,24 @@ class Registry:
             ),
         )
         self._conn.commit()
+
+    def list_runs(self, sandbox_id: str) -> list[dict]:  # type: ignore[type-arg]
+        rows = self._conn.execute(
+            "SELECT id, started_at, completed_at, duration_ms, exit_code, error "
+            "FROM runs WHERE sandbox_id = ? ORDER BY started_at DESC",
+            (sandbox_id,),
+        ).fetchall()
+        return [
+            {
+                "id": row[0],
+                "started_at": row[1],
+                "completed_at": row[2],
+                "duration_ms": row[3],
+                "exit_code": row[4],
+                "error": row[5],
+            }
+            for row in rows
+        ]
 
     def get_metrics(self) -> dict:  # type: ignore[type-arg]
         active = self._conn.execute(

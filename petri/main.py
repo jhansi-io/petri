@@ -10,10 +10,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from petri.config import LOG_MAX_MB, TTL_SECONDS, WORKSPACE_ROOT
+from petri.dashboard import DASHBOARD_HTML
 from petri.executor import run_stream
 from petri.log_retention import evict_logs_if_needed
 from petri.registry import Registry, SandboxNotFound
@@ -59,6 +60,16 @@ class SandboxResponse(BaseModel):
     id: str
     language: str
     status: SandboxStatus
+
+
+class SandboxListItem(BaseModel):
+    id: str
+    language: str
+    status: SandboxStatus
+    agent: str | None
+    created_by: str
+    created_at: datetime
+    expires_at: datetime
 
 
 class ExecRequest(BaseModel):
@@ -204,6 +215,24 @@ def exec_sandbox(
     )
 
 
+@app.get("/v1/sandboxes/active")
+def list_active_sandboxes(
+    registry: Registry = Depends(get_registry),
+) -> list[SandboxListItem]:
+    return [
+        SandboxListItem(
+            id=s.id,
+            language=s.language,
+            status=s.status,
+            agent=s.agent,
+            created_by=s.created_by,
+            created_at=s.created_at,
+            expires_at=s.expires_at,
+        )
+        for s in registry.list_active()
+    ]
+
+
 @app.get("/v1/sandboxes/{sandbox_id}")
 def get_sandbox(
     sandbox_id: str,
@@ -228,3 +257,36 @@ def delete_sandbox(
         registry.remove(sandbox_id)
     except SandboxNotFound:
         raise HTTPException(status_code=404, detail="Sandbox not found")
+
+
+@app.get("/v1/sandboxes")
+def list_sandboxes(
+    limit: int = 50,
+    offset: int = 0,
+    registry: Registry = Depends(get_registry),
+) -> list[SandboxListItem]:
+    return [
+        SandboxListItem(
+            id=s.id,
+            language=s.language,
+            status=s.status,
+            agent=s.agent,
+            created_by=s.created_by,
+            created_at=s.created_at,
+            expires_at=s.expires_at,
+        )
+        for s in registry.list_all(limit=limit, offset=offset)
+    ]
+
+
+@app.get("/v1/sandboxes/{sandbox_id}/runs")
+def list_sandbox_runs(
+    sandbox_id: str,
+    registry: Registry = Depends(get_registry),
+) -> list[dict]:  # type: ignore[type-arg]
+    return registry.list_runs(sandbox_id)
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard() -> str:
+    return DASHBOARD_HTML

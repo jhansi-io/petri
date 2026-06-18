@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.0] - 2026-06-18
+
+### Added
+- `GET /dashboard` — read-only HTML dashboard served by Petri: active sandboxes, full history, runs drill-down. Plain HTML + `fetch`, no external dependencies
+- `GET /v1/sandboxes/active` — sandboxes within TTL and not soft-deleted (`deleted_at IS NULL AND expires_at > now`), newest first
+- `GET /v1/sandboxes` — paginated history of all sandboxes via `limit` (default `50`) and `offset`, newest first, includes deleted
+- `GET /v1/sandboxes/{id}/runs` — run metadata for a sandbox: `id`, `started_at`, `completed_at`, `duration_ms`, `exit_code`, `error`
+- `list_active()`, `list_all()`, and `list_runs()` methods on `Registry`
+- `SandboxListItem` response model — richer than `SandboxResponse`, adds `agent`, `created_by`, `created_at`, `expires_at`
+- ADR-015: read-only dashboard
+
 ## [0.9.0] - 2026-06-11
 
 ### Added
