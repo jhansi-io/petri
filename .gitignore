@@ -9,6 +9,10 @@ __pycache__/
 #OS
 .DS_Store
 
+#GO
+/petri
+petri.db
+
 # Distribution / packaging
 .Python
 build/
