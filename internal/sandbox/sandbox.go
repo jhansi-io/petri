@@ -1,8 +1,7 @@
 package sandbox
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"github.com/jhansi-io/petri/internal/id"
 	"time"
 )
 
@@ -14,16 +13,8 @@ type Sandbox struct {
 
 func New() *Sandbox {
 	return &Sandbox{
-		ID: "sb_" + randomHex(16),
+		ID: "sb_" + id.New("sb_"),
 		Status: StatusCreating,
 		CreatedAt: time.Now().UTC(),
 	}
-}
-
-func randomHex(n int) string {
-	b := make([]byte, n)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(b)
 }
