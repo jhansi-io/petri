@@ -13,7 +13,7 @@ type Sandbox struct {
 
 func New() *Sandbox {
 	return &Sandbox{
-		ID: "sb_" + id.New("sb_"),
+		ID: id.New("sb_"),
 		Status: StatusCreating,
 		CreatedAt: time.Now().UTC(),
 	}

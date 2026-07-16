@@ -1,14 +1,14 @@
 package main
 
 import (
+	"log"
 	"net/http"
+	"github.com/jhansi-io/petri/internal/httpapi"
+	"github.com/jhansi-io/petri/internal/sandbox"
 )
 
 func main() {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	})
-	http.ListenAndServe(":8000", mux)
+	registry := sandbox.NewRegistry()
+	server := httpapi.NewServer(registry)
+	log.Fatal(http.ListenAndServe(":8000", server.Routes()))
 }
